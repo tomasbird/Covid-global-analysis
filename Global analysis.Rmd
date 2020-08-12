@@ -14,7 +14,12 @@ knitr::opts_chunk$set(echo = TRUE)
 R document for PAN E global analysis
 
 ```{r load data and packages}
+# google mobility data from Cerren
+googdat=readRDS("Data/google.rds")
 
+# air traffic data
+
+# NO2 data
 ```
 
 ## Google mobility
