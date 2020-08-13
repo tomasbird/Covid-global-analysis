@@ -29,11 +29,9 @@ airdat=read.csv("Data/RawAirData.csv")
 ## Google mobility
 We are still working out what the storyline is for the google mobility data and how they support the empirical, anecdotal and twitter analyses 
 
-<<<<<<< HEAD
 ```{r google Analysis}
 # Read in google data
 google <- read.csv("Global_Mobility_Report.csv")
->>>>>>> 392729d2bb8a58c27a9ab05e870245fb3ec08252
 
 # R reads Namibia's iso2 code is as an "is.na" object, so we will rename it to NA
 google$country_region_code[is.na(google$country_region_code)] <-"NA"
@@ -105,6 +103,16 @@ google <- left_join(google, confinement)
 
 This section for google mobility:
 
+## Air traffic
+```{r Air traffic data, echo=FALSE}
+library(reshape2)
+# manipulate Air data
+airdat.long=melt(airdat, id.vars=c("Year", "Data", "Countries"))
+airdat.long$variable=gsub("\\.", "/", airdat.long$variable)
+airdat.long$date=with(airdat.long, as.Date(paste(variable, Year, sep="/"), format="%b/%d/%Y" ))
+
+# merge with lockdown
+```
 
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
