@@ -144,10 +144,12 @@ no_sub_countries <- google_no_sub %>% distinct(country_alpha3, country_name)
 
 library(mgcv)
 
+# RESIDENTIAL MODEL
+
 #Assign NA to all countries
 no_sub_countries$tval_residential <- NA
 
-# RESIDENTIAL MODEL
+# Run a loop that extracts the t-value from the gam model run for each country
 for (i in 1:nrow(no_sub_countries)) { 
   tryCatch({
 
@@ -158,6 +160,28 @@ gam1 <- gam(data=filter(google_no_sub, country_alpha3 == no_sub_countries$countr
 gam.table <- summary(gam1)
 gam.table <- gam.table$p.table
 no_sub_countries$tval_residential[i] <- gam.table[2,3]
+
+  }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+}
+
+
+
+# PARKS MODEL
+
+#Assign NA to all countries
+no_sub_countries$tval_parks <- NA
+
+# Run a loop that extracts the t-value from the gam model run for each country
+for (i in 1:nrow(no_sub_countries)) { 
+    tryCatch({
+
+# Run GAM model for each country in the no_sub_countries dataframe
+gam2 <- gam(data=filter(google_no_sub, country_alpha3 == no_sub_countries$country_alpha3[i]), parks ~ lockdown + weekend + s(julian)) 
+
+# Extract the t-value and paste it into the no_sub_countries dataframe
+gam.table <- summary(gam2)
+gam.table <- gam.table$p.table
+no_sub_countries$tval_parks[i] <- gam.table[2,3]
 
   }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
 }
