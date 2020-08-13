@@ -96,6 +96,78 @@ confinement <- confinement %>% select(CountryName, country_alpha3 = CountryCode,
 google <- left_join(google, confinement)
 ```
 
+## Subsetting countries with and without subregions
+
+We will run different models on the data with and without "sub_region_1".
+Here we subset the `google` dataframe into `google_no_sub` and `google_sub`.
+
+```{r}
+
+# Identify countries with subregions
+subregion <- google %>% group_by(country_alpha2) %>% summarise(subregions = n_distinct(sub_region_1))
+
+# join the number of subregions to the google dataframe
+google <- left_join(google, subregion)
+
+# Filter countries without subregions
+google_no_sub <- filter(google, subregions == 1)
+
+# Filter countries with subregions
+google_sub <- filter(google, subregions > 1)
+
+# The countries with subregions have an overall trend. We will delete this here. 
+library(naniar)
+google_sub<- google_sub %>% replace_with_na(replace = list(sub_region_1 = ""))
+google_sub<- google_sub[!is.na(google_sub$sub_region_1), ]
+
+```
+
+
+## TEST: Modelling countries WITHOUT subregions
+
+This only uses a random lockdown date so that we can start playing with the models
+
+```{r}
+
+# FOR TEST ONLY: ASSIGN A RANDOM LOCKDOWN DATE FOR ALL COUNTRIES
+google_no_sub$julian_lockdown <- 71
+
+
+# Assign before and after lockdown
+google_no_sub <- mutate(google_no_sub, lockdown = ifelse(julian >= julian_lockdown, "After", "Before"))
+google_no_sub$lockdown<- factor(google_no_sub$lockdown, levels =c("Before","After"))
+
+# Make a list of all the countries with no subregions
+# This will be called on in the loop below and the tvalues will be placed here
+no_sub_countries <- google_no_sub %>% distinct(country_alpha3, country_name)
+
+
+library(mgcv)
+
+#Assign NA to all countries
+no_sub_countries$tval_residential <- NA
+
+# RESIDENTIAL MODEL
+for (i in 1:nrow(no_sub_countries)) { 
+  tryCatch({
+
+# Run GAM model for each country in the no_sub_countries dataframe
+gam1 <- gam(data=filter(google_no_sub, country_alpha3 == no_sub_countries$country_alpha3[i]), residential ~ lockdown + weekend + s(julian)) 
+
+# Extract the t-value and paste it into the no_sub_countries dataframe
+gam.table <- summary(gam1)
+gam.table <- gam.table$p.table
+no_sub_countries$tval_residential[i] <- gam.table[2,3]
+
+  }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+}
+
+```
+
+
+
+
+
 ```{r google figures}
 
 ```
