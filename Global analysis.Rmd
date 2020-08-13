@@ -29,6 +29,22 @@ airdat=read.csv("Data/RawAirData.csv")
 ## Google mobility
 We are still working out what the storyline is for the google mobility data and how they support the empirical, anecdotal and twitter analyses 
 
+
+**Data Description**: How visits and length of stay at different places change compared to a baseline.
+    - Parks: national parks, public beaches, marinas, dog parks, plazas, and public gardens.
+    - Residential: places of residence
+    
+**Baseline**: Median value, for the corresponding day of the week, during the 5- week period Jan 3–Feb 6, 2020
+
+**Download data and methods**:
+* https://www.google.com/covid19/mobility/
+* https://support.google.com/covid19-mobility/answer/9824897?hl=en&ref_topic=9822927
+
+
+## Preparing the Google data for further analyses
+
+Here we ensure the country names match, add a Julian date, add a weekend column and match the confinement data from the Oxford Covid-19 Government Response Tracker (OxCGRT).
+
 ```{r google Analysis}
 # Read in google data
 google <- read.csv("Global_Mobility_Report.csv")
