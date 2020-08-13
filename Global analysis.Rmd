@@ -68,15 +68,6 @@ google$weekend<- weekdays(as.Date(google$date), abbr = TRUE)
 google$weekend[google$weekend %in% c("Sat", "Sun") ] <- c("YES", "YES")
 google$weekend[google$weekend %in% c("Mon", "Tue", "Wed", "Thu", "Fri") ] <- c("NO", "NO", "NO", "NO", "NO")
 
-
-# We will run different models on the data with and without "sub_region_1"
-# We will subset these two types
-subregion <- google %>% group_by(country_alpha2) %>% summarise(subregions = n_distinct(sub_region_1))
-
-# join the number of subregions
-google <- left_join(google, subregion)
-
-
 # Load in confinement data from Oxford Covid-19 Government Response Tracker (OxCGRT)
 # Data info: https://github.com/OxCGRT/covid-policy-tracker
 
@@ -192,7 +183,7 @@ no_sub_countries$tval_parks[i] <- gam.table[2,3]
 
 NOTE: WILL NEED TO FURTHER SUBSET CANADA AND THE USA 
 
-These models take a while to run!
+These models take a while to run because the USA still has sub_region_2 - need to remove these
 
 ```{r}
 # FOR TEST ONLY: ASSIGN A RANDOM LOCKDOWN DATE FOR ALL COUNTRIES
@@ -206,8 +197,6 @@ google_sub$lockdown<- factor(google_sub$lockdown, levels =c("Before","After"))
 # Make a list of all the countries with no subregions
 # This will be called on in the loop below and the tvalues will be placed here
 sub_countries <- google_sub %>% distinct(country_alpha3, country_name)
-
-
 
 
 # RESIDENTIAL MODEL
@@ -253,6 +242,93 @@ sub_countries$tval_parks[i] <- gamm.table[2,3]
 
 ```{r google figures}
 
+# Join the subregion and no subregion countries
+google_effect <- full_join(sub_countries, no_sub_countries)
+
+library(ggplot2);library(viridis); library(ggpubr);library(sf);library("rnaturalearth"); library("rnaturalearthdata")
+
+# data for the world
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+# Rename column and join it to the t-values
+world <- world %>% rename(country_alpha3 = iso_a3) 
+world <- left_join(world, google_effect)
+
+
+# FILL COUNTRIES PLOT RESIDENTIAL
+ggplot() +
+  theme_void(base_size = 18)+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+   geom_sf(data = world, aes(fill = tval_residential),  colour = "grey20", size = 0.25)+
+  scale_y_continuous(expand = c(0,0), limits = c(-60, 85))+
+  scale_x_continuous(expand = c(0,0), limits = c(-180, 180))+
+  theme(axis.title.x=element_blank(), axis.title.y=element_blank())+
+  theme(legend.position = "bottom", legend.box = "vertical")+
+  scale_fill_viridis(option = "D", na.value="grey90",
+  guide = guide_colorbar (title.position = 'top', title.hjust = 0.5, label.hjust = 0.5,
+  barheight = unit(3, units = "mm"), barwidth = unit(100, units = "mm"))) +
+  labs(fill = "Residential Mobility Effect Size")  
+
+
+# FILL COUNTRIES PLOT PARKS
+ggplot() +
+  theme_void(base_size = 18)+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+   geom_sf(data = world, aes(fill = tval_parks),  colour = "grey20", size = 0.25)+
+  scale_y_continuous(expand = c(0,0), limits = c(-60, 85))+
+  scale_x_continuous(expand = c(0,0), limits = c(-180, 180))+
+  theme(axis.title.x=element_blank(), axis.title.y=element_blank())+
+  theme(legend.position = "bottom", legend.box = "vertical")+
+  scale_fill_viridis(option = "D", na.value="grey90",
+  guide = guide_colorbar (title.position = 'top', title.hjust = 0.5, label.hjust = 0.5,
+  barheight = unit(3, units = "mm"), barwidth = unit(100, units = "mm"))) +
+  labs(fill = "Parks & Beaches Mobility Effect Size")  
+
+
+# COUNTRIES BUBBLE PLOT
+
+# Download countries centroid coordinates
+library(CoordinateCleaner)
+data("countryref")
+
+# Rename iso3 column and join it to the world data
+countryref <- countryref %>% rename(country_alpha3 = iso3) 
+
+# Select only the country coordinates
+countryref <- filter(countryref, type == "country" )
+countryref <- distinct(countryref, country_alpha3, .keep_all = TRUE)
+
+# Join the coordinates to the world dataframe
+world <- left_join(world, countryref, by = "country_alpha3")
+
+
+# BUBBLE PLOT RESIDENTIAL
+  ggplot() +
+  theme_void(base_size = 18)+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  geom_sf(data = world, fill = "grey90", colour = "grey20", size = 0.25)+
+  geom_point(data = world, aes(x = centroid.lon, y = centroid.lat, 
+                               size = tval_residential),
+             alpha = 0.7, colour = "#43A047")+
+  scale_y_continuous(expand = c(0,0), limits = c(-60, 85))+
+  scale_x_continuous(expand = c(0,0), limits = c(-180, 180))+
+  theme(legend.position = "bottom", legend.box = "vertical")+
+      labs(size = "Residential")
+  
+
+# BUBBLE PLOT PARKS
+  ggplot() +
+  theme_void(base_size = 18)+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  geom_sf(data = world, fill = "grey90", colour = "grey20", size = 0.25)+
+  geom_point(data = world, aes(x = centroid.lon, y = centroid.lat, 
+                               size = tval_parks),
+             alpha = 0.7, colour = "#43A047")+
+  scale_y_continuous(expand = c(0,0), limits = c(-60, 85))+
+  scale_x_continuous(expand = c(0,0), limits = c(-180, 180))+
+  theme(legend.position = "bottom", legend.box = "vertical")+
+      labs(size = "Parks & Beaches")  
+  
 ```
 
 
