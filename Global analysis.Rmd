@@ -84,15 +84,6 @@ google$weekend<- weekdays(as.Date(google$date), abbr = TRUE)
 google$weekend[google$weekend %in% c("Sat", "Sun") ] <- c("YES", "YES")
 google$weekend[google$weekend %in% c("Mon", "Tue", "Wed", "Thu", "Fri") ] <- c("NO", "NO", "NO", "NO", "NO")
 
-
-# We will run different models on the data with and without "sub_region_1"
-# We will subset these two types
-subregion <- google %>% group_by(country_alpha2) %>% summarise(subregions = n_distinct(sub_region_1))
-
-# join the number of subregions
-google <- left_join(google, subregion)
-
-
 # Load in confinement data from Oxford Covid-19 Government Response Tracker (OxCGRT)
 # Data info: https://github.com/OxCGRT/covid-policy-tracker
 
@@ -111,6 +102,35 @@ confinement <- confinement %>% select(CountryName, country_alpha3 = CountryCode,
 # Join the google and the OxCGRT data
 google <- left_join(google, confinement)
 ```
+
+
+## Subsetting countries with and without subregions
+
+We will run different models on the data with and without "sub_region_1".
+Here we subset the `google` dataframe into `google_no_sub` and `google_sub`.
+
+```{r}
+
+# Identify countries with subregions
+subregion <- google %>% group_by(country_alpha2) %>% summarise(subregions = n_distinct(sub_region_1))
+
+# join the number of subregions to the google dataframe
+google <- left_join(google, subregion)
+
+# Filter countries without subregions
+google_no_sub <- filter(google, subregions == 1)
+
+# Filter countries with subregions
+google_sub <- filter(google, subregions > 1)
+
+# The countries with subregions have an overall trend. We will delete this here. 
+library(naniar)
+google_sub<- google_sub %>% replace_with_na(replace = list(sub_region_1 = ""))
+google_sub<- google_sub[!is.na(google_sub$sub_region_1), ]
+
+```
+
+
 
 ```{r google figures}
 
