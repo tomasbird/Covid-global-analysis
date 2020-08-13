@@ -31,8 +31,6 @@ We are still working out what the storyline is for the google mobility data and 
 
 <<<<<<< HEAD
 ```{r google Analysis}
-=======
-```{r}
 # Read in google data
 google <- read.csv("Global_Mobility_Report.csv")
 >>>>>>> 392729d2bb8a58c27a9ab05e870245fb3ec08252
