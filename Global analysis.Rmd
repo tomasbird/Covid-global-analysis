@@ -19,6 +19,7 @@ R document for PAN E global analysis
 googdat=readRDS("Data/google.rds")
 
 # air traffic data
+airdat=read.csv("Data/RawAirData.csv")
 
 # NO2 data
 
@@ -26,11 +27,15 @@ googdat=readRDS("Data/google.rds")
 ```
 
 ## Google mobility
+We are still working out what the storyline is for the google mobility data and how they support the empirical, anecdotal and twitter analyses 
 
-```{r}
+```{r google Analysis}
 
 ```
 
+```{r google figures}
+
+```
 
 
 This section for google mobility:
