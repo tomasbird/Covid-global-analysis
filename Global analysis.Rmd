@@ -29,8 +29,75 @@ airdat=read.csv("Data/RawAirData.csv")
 ## Google mobility
 We are still working out what the storyline is for the google mobility data and how they support the empirical, anecdotal and twitter analyses 
 
+<<<<<<< HEAD
 ```{r google Analysis}
+=======
+```{r}
+# Read in google data
+google <- read.csv("Global_Mobility_Report.csv")
+>>>>>>> 392729d2bb8a58c27a9ab05e870245fb3ec08252
 
+# R reads Namibia's iso2 code is as an "is.na" object, so we will rename it to NA
+google$country_region_code[is.na(google$country_region_code)] <-"NA"
+
+# Add the country codes so we ensure everything matches 
+library(countrycode)
+google$country_alpha2 <- google$country_region_code
+google$country_alpha3 <- countrycode(google$country_region_code, origin = 'iso2c', destination = 'iso3c')
+google$country_name <- countrycode(google$country_region_code, origin = 'iso2c', destination = 'country.name')
+
+# Add Julian date
+google$julian<- (strptime(google$date, "%Y-%m-%d")$yday) + 1 # need to add 1 day because 2020 is a leap year
+
+library(dplyr)
+# Select the columns that will be used in further analyses
+google <- google %>% select(country_name, country_alpha2, country_alpha3,
+                            sub_region_1, sub_region_2, iso_3166_2_code,
+                            date, julian, residential = residential_percent_change_from_baseline, 
+                            parks = parks_percent_change_from_baseline)
+
+
+# Visualise a subset of the data
+# A weekend effect may need to be included in the model
+library(ggplot2)
+ggplot(filter(google, country_alpha3 =="GBR" ), aes(x=julian, y=residential)) + 
+  geom_point() + 
+  geom_vline(xintercept = 83, colour = "red")
+
+
+# Add week days 
+google$weekend<- weekdays(as.Date(google$date), abbr = TRUE)
+
+# Assign yes/no to weekend and week day
+google$weekend[google$weekend %in% c("Sat", "Sun") ] <- c("YES", "YES")
+google$weekend[google$weekend %in% c("Mon", "Tue", "Wed", "Thu", "Fri") ] <- c("NO", "NO", "NO", "NO", "NO")
+
+
+# We will run different models on the data with and without "sub_region_1"
+# We will subset these two types
+subregion <- google %>% group_by(country_alpha2) %>% summarise(subregions = n_distinct(sub_region_1))
+
+# join the number of subregions
+google <- left_join(google, subregion)
+
+
+# Load in confinement data from Oxford Covid-19 Government Response Tracker (OxCGRT)
+# Data info: https://github.com/OxCGRT/covid-policy-tracker
+
+library(RCurl)
+confinement <- getURL("https://raw.githubusercontent.com/OxCGRT/covid-policy-tracker/master/data/OxCGRT_latest_withnotes.csv")
+confinement <- read.csv(text = confinement)
+
+confinement$julian<- (strptime(confinement$Date, "%Y%m%d")$yday) + 1 # need to add 1 day because 2020 is a leap year
+
+confinement <- confinement %>% select(CountryName, country_alpha3 = CountryCode, Date, julian, StringencyIndex, 
+                      C1_School.closing, C2_Workplace.closing, C3_Cancel.public.events,
+                      C4_Restrictions.on.gatherings, C5_Close.public.transport,
+                      C6_Stay.at.home.requirements, C7_Restrictions.on.internal.movement, 
+                      C8_International.travel.controls)
+
+# Join the google and the OxCGRT data
+google <- left_join(google, confinement)
 ```
 
 ```{r google figures}
