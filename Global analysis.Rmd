@@ -1,6 +1,6 @@
 ---
 title: "PAN-E global analysis"
-author: "Tom Bird"
+author: "Tom Bird & Cerren Richards"
 date: "12/08/2020"
 output: html_document
 ---
@@ -28,6 +28,20 @@ airdat=read.csv("Data/RawAirData.csv")
 
 ## Google mobility
 We are still working out what the storyline is for the google mobility data and how they support the empirical, anecdotal and twitter analyses 
+
+**Data Description**: How visits and length of stay at different places change compared to a baseline.
+    - Parks: national parks, public beaches, marinas, dog parks, plazas, and public gardens.
+    - Residential: places of residence
+    
+**Baseline**: Median value, for the corresponding day of the week, during the 5- week period Jan 3–Feb 6, 2020
+
+**Download data and methods**:
+* https://www.google.com/covid19/mobility/
+* https://support.google.com/covid19-mobility/answer/9824897?hl=en&ref_topic=9822927
+
+
+### Preparing the dataframe for further analyses
+In this R chunk, we join the Google Mobility Data with the Oxford Covid-19 Government Response Tracker data. We ensure all country codes are matching, add a Julian Date, and a weekend column.
 
 <<<<<<< HEAD
 ```{r google Analysis}
