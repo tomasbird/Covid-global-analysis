@@ -188,7 +188,66 @@ no_sub_countries$tval_parks[i] <- gam.table[2,3]
 
 ```
 
+## TEST: Modelling countries WITH subregions
 
+NOTE: WILL NEED TO FURTHER SUBSET CANADA AND THE USA 
+
+These models take a while to run!
+
+```{r}
+# FOR TEST ONLY: ASSIGN A RANDOM LOCKDOWN DATE FOR ALL COUNTRIES
+google_sub$julian_lockdown <- 71
+
+# Assign before and after lockdown
+google_sub <- mutate(google_sub, lockdown = ifelse(julian >= julian_lockdown, "After", "Before"))
+google_sub$lockdown<- factor(google_sub$lockdown, levels =c("Before","After"))
+
+
+# Make a list of all the countries with no subregions
+# This will be called on in the loop below and the tvalues will be placed here
+sub_countries <- google_sub %>% distinct(country_alpha3, country_name)
+
+
+
+
+# RESIDENTIAL MODEL
+#Assign NA to all countries
+sub_countries$tval_residential <- NA
+
+# Run GAM model for each country in the no_sub_countries dataframe
+for (i in 1:nrow(sub_countries)) { 
+ tryCatch({
+# Run GAM model for each country in the no_sub_countries dataframe
+gamm1 <- gamm(data=filter(google_sub, country_alpha3 == sub_countries$country_alpha3[i]), residential ~ lockdown + weekend + s(julian), random = list(sub_region_1=~1))
+
+# Extract the t-value and paste it into the no_sub_countries dataframe
+gamm.table <- summary(gamm1$gam)
+gamm.table <- gamm.table$p.table
+sub_countries$tval_residential[i] <- gamm.table[2,3]
+
+  }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+}
+
+# PARKS MODEL
+
+#Assign NA to all countries
+sub_countries$tval_parks <- NA
+
+# Run GAM model for each country in the no_sub_countries dataframe
+for (i in 1:nrow(sub_countries)) { 
+ tryCatch({
+# Run GAM model for each country in the no_sub_countries dataframe
+gamm1 <- gamm(data=filter(google_sub, country_alpha3 == sub_countries$country_alpha3[i]), parks ~ lockdown + weekend + s(julian), random = list(sub_region_1=~1))
+
+# Extract the t-value and paste it into the no_sub_countries dataframe
+gamm.table <- summary(gamm1$gam)
+gamm.table <- gamm.table$p.table
+sub_countries$tval_parks[i] <- gamm.table[2,3]
+
+  }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+}
+
+```
 
 
 
