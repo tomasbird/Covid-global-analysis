@@ -9,25 +9,32 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## PAN E global analysis
+# PAN E global analysis
+This brings together our various analyses into a working document
 
 R document for PAN E global analysis
 
-```{r load data and packages}
+```{r data}
 # google mobility data from Cerren
 googdat=readRDS("Data/google.rds")
 
 # air traffic data
 
 # NO2 data
+
+# AIS shipping data (David)
 ```
 
 ## Google mobility
 
+```{r}
+
+```
+
+
+
 This section for google mobility:
 
-```{r google mobility data, echo=FALSE}
-plot(pressure)
-```
+
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
