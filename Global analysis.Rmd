@@ -134,6 +134,7 @@ google_sub<- google_sub[!is.na(google_sub$sub_region_1), ]
 
 ```{r}
 
+
 # Gather the confinement types
 test <- google_no_sub %>% gather(Confinement, julian_lockdown, C1_School.closing:C8_International.travel.controls)
 
@@ -167,30 +168,59 @@ cols <- c("C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8")
 google_no_sub[cols] <- lapply(google_no_sub[cols], factor, levels = c("Before","After"))
 
 
-# Running test models with Costa Rica data
-gam1 <- gam(data=filter(google_no_sub, country_alpha3 == "CRI"), residential ~ C1 + weekend + s(julian)) 
-gam2 <- gam(data=filter(google_no_sub, country_alpha3 == "CRI"), residential ~ C2 + weekend + s(julian))
-gam3 <- gam(data=filter(google_no_sub, country_alpha3 == "CRI"), residential ~ C3 + weekend + s(julian))
-gam4 <- gam(data=filter(google_no_sub, country_alpha3 == "CRI"), residential ~ C4 + weekend + s(julian))
-gam5 <- gam(data=filter(google_no_sub, country_alpha3 == "CRI"), residential ~ C5 + weekend + s(julian))
-gam6 <- gam(data=filter(google_no_sub, country_alpha3 == "CRI"), residential ~ C6 + weekend + s(julian))
-gam7 <- gam(data=filter(google_no_sub, country_alpha3 == "CRI"), residential ~ C7 + weekend + s(julian))
-gam8 <- gam(data=filter(google_no_sub, country_alpha3 == "CRI"), residential ~ C8 + weekend + s(julian))
+# Make a list of all the countries with no subregions
+# This will be called on in the loop below and the tvalues will be placed here
+no_sub_countries <- google_no_sub %>% distinct(country_alpha3, country_name)
 
-# Check AIC scores
-AIC(gam1)
-AIC(gam2)
-AIC(gam3)
-AIC(gam4)
-AIC(gam5)
-AIC(gam6)
-AIC(gam7)
-AIC(gam8)
 
-# PLOT 
-ggplot(filter(google, country_alpha3 =="CRI" ), aes(x=julian, y=residential)) + 
-      geom_line() + 
-      geom_vline(xintercept = 77, colour = "red")
+# RESIDENTIAL MODEL
+
+#Assign NA to all countries
+no_sub_countries$tval_residential <- NA
+
+
+# Run a loop that extracts the t-value from the gam model run for each country
+for (i in 1:nrow(no_sub_countries)) { 
+  tryCatch({
+    
+# Run the GAM models for each confinement level    
+gam1 <- gam(data=filter(google_no_sub, country_alpha3 == no_sub_countries$country_alpha3[i]), 
+            residential ~ C1 + weekend + s(julian)) 
+gam2 <- gam(data=filter(google_no_sub, country_alpha3 == no_sub_countries$country_alpha3[i]), 
+            residential ~ C2 + weekend + s(julian))
+gam3 <- gam(data=filter(google_no_sub, country_alpha3 == no_sub_countries$country_alpha3[i]), 
+            residential ~ C3 + weekend + s(julian))
+gam4 <- gam(data=filter(google_no_sub, country_alpha3 == no_sub_countries$country_alpha3[i]), 
+            residential ~ C4 + weekend + s(julian))
+gam5 <- gam(data=filter(google_no_sub, country_alpha3 == no_sub_countries$country_alpha3[i]), 
+            residential ~ C5 + weekend + s(julian))
+gam6 <- gam(data=filter(google_no_sub, country_alpha3 == no_sub_countries$country_alpha3[i]), 
+            residential ~ C6 + weekend + s(julian))
+gam7 <- gam(data=filter(google_no_sub, country_alpha3 == no_sub_countries$country_alpha3[i]), 
+            residential ~ C7 + weekend + s(julian))
+gam8 <- gam(data=filter(google_no_sub, country_alpha3 == no_sub_countries$country_alpha3[i]), 
+            residential ~ C8 + weekend + s(julian))
+
+# Create a list of all the GAMs
+gam <- list(gam1, gam2, gam3, gam4, gam5, gam6, gam7, gam8)
+
+library(rlist);library(pipeR)
+
+# Sort the GAMs in from lowest to highest AIC score
+gam <- gam %>>% list.sort(aic) 
+
+# Get the summary from the GAM with the lowest AIC score
+gam.table <- summary(gam[[1]])
+
+# Extract the t-value and paste it into the no_sub_countries dataframe
+gam.table <- gam.table$p.table
+no_sub_countries$tval_residential[i] <- gam.table[2,3]
+
+  }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+}
+
+
+
 
 ```
 
