@@ -130,6 +130,72 @@ google_sub<- google_sub[!is.na(google_sub$sub_region_1), ]
 ```
 
 
+## TEST: Selecting the best confinement date
+
+```{r}
+
+# Gather the confinement types
+test <- google_no_sub %>% gather(Confinement, julian_lockdown, C1_School.closing:C8_International.travel.controls)
+
+# Select the highest confinement level and replace it with the Julian date
+summary_index <- test %>% group_by(country_name, Confinement) %>% 
+  filter(julian_lockdown == max(julian_lockdown)) %>%
+  mutate(julian_lockdown = replace(julian_lockdown, julian_lockdown==max(julian_lockdown), min(julian)))%>%
+  distinct(julian_lockdown)
+
+# Spread the data again
+summary_index <- spread(summary_index, key = Confinement, value = julian_lockdown)
+
+# rename columns
+colnames(summary_index) <- c("country_name", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8")
+
+# Join confinement dates back to the google data
+google_no_sub <- left_join(google_no_sub, summary_index)
+
+# Assign the the dates as before or after the confinement date
+google_no_sub <- google_no_sub %>% mutate(C1 = ifelse(julian >= C1, "After", "Before"),
+                                          C2 = ifelse(julian >= C2, "After", "Before"),
+                                          C3 = ifelse(julian >= C3, "After", "Before"),
+                                          C4 = ifelse(julian >= C4, "After", "Before"),
+                                          C5 = ifelse(julian >= C5, "After", "Before"),
+                                          C6 = ifelse(julian >= C6, "After", "Before"),
+                                          C7 = ifelse(julian >= C7, "After", "Before"),
+                                          C8 = ifelse(julian >= C8, "After", "Before"))
+
+# Coerce confinement columns to factors
+cols <- c("C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8")
+google_no_sub[cols] <- lapply(google_no_sub[cols], factor, levels = c("Before","After"))
+
+
+# Running test models with Costa Rica data
+gam1 <- gam(data=filter(google_no_sub, country_alpha3 == "CRI"), residential ~ C1 + weekend + s(julian)) 
+gam2 <- gam(data=filter(google_no_sub, country_alpha3 == "CRI"), residential ~ C2 + weekend + s(julian))
+gam3 <- gam(data=filter(google_no_sub, country_alpha3 == "CRI"), residential ~ C3 + weekend + s(julian))
+gam4 <- gam(data=filter(google_no_sub, country_alpha3 == "CRI"), residential ~ C4 + weekend + s(julian))
+gam5 <- gam(data=filter(google_no_sub, country_alpha3 == "CRI"), residential ~ C5 + weekend + s(julian))
+gam6 <- gam(data=filter(google_no_sub, country_alpha3 == "CRI"), residential ~ C6 + weekend + s(julian))
+gam7 <- gam(data=filter(google_no_sub, country_alpha3 == "CRI"), residential ~ C7 + weekend + s(julian))
+gam8 <- gam(data=filter(google_no_sub, country_alpha3 == "CRI"), residential ~ C8 + weekend + s(julian))
+
+# Check AIC scores
+AIC(gam1)
+AIC(gam2)
+AIC(gam3)
+AIC(gam4)
+AIC(gam5)
+AIC(gam6)
+AIC(gam7)
+AIC(gam8)
+
+# PLOT 
+ggplot(filter(google, country_alpha3 =="CRI" ), aes(x=julian, y=residential)) + 
+      geom_line() + 
+      geom_vline(xintercept = 77, colour = "red")
+
+```
+
+
+
 ## TEST: Modelling countries WITHOUT subregions
 
 This only uses a random lockdown date so that we can start playing with the models
