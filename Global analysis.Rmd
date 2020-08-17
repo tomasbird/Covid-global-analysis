@@ -444,6 +444,59 @@ world <- left_join(world, countryref, by = "country_alpha3")
 ```
 
 
+## CHANGE AT PARKS AFTER PANDEMIC DECLARED
+```{r}
+
+# The date the pandemic was declared 
+google$julian_lockdown <- 71
+
+# Assign before and after pandemic
+google <- mutate(google, lockdown = ifelse(julian >= julian_lockdown, "After", "Before"))
+
+# get median change after pandemic 
+median_after<- google %>% group_by(country_name, sub_region_1, lockdown) %>% 
+  summarise(median = median(parks))
+
+# Filter only after the pandemic declared
+median_after <- filter(median_after, lockdown == "After")
+
+#Remove duplicates
+median_after<- median_after[!duplicated(median_after$country_name), ]
+
+# Define increase or decrease
+median_after <- mutate(median_after, increase = ifelse(median > 0 , "Increase", "Decrease"))
+
+#Join to `world` dataframe (it's in the above R chunk)
+median_after <- left_join(world, median_after)
+
+# TWO COLOURS
+ggplot() +
+  theme_void(base_size = 18)+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+   geom_sf(data = median_after, aes(fill = increase),  colour = "grey20", size = 0.25)+
+  scale_y_continuous(expand = c(0,0), limits = c(-60, 85))+
+  scale_x_continuous(expand = c(0,0), limits = c(-180, 180))+
+  labs(fill = "change at parks")+
+ theme(legend.position = "bottom", legend.box = "vertical")
+
+#CONTINUOUS COLOURS
+ggplot() +
+  theme_void(base_size = 18)+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+   geom_sf(data = median_after, aes(fill = median),  colour = "grey20", size = 0.25)+
+  scale_y_continuous(expand = c(0,0), limits = c(-60, 85))+
+  scale_x_continuous(expand = c(0,0), limits = c(-180, 180))+
+  theme(axis.title.x=element_blank(), axis.title.y=element_blank())+
+  theme(legend.position = "bottom", legend.box = "vertical")+
+  scale_fill_viridis(option = "D", na.value="grey90",
+  guide = guide_colorbar (title.position = 'top', title.hjust = 0.5, label.hjust = 0.5,
+  barheight = unit(3, units = "mm"), barwidth = unit(100, units = "mm"))) +
+  labs(fill = "Parks") 
+```
+
+
+
+
 This section for google mobility:
 
 ## Air traffic
@@ -458,4 +511,4 @@ airdat.long$date=with(airdat.long, as.Date(paste(variable, Year, sep="/"), forma
 ```
 
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
