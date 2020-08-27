@@ -130,6 +130,154 @@ google_sub<- google_sub[!is.na(google_sub$sub_region_1), ]
 ```
 
 
+## SECOND TRY - SELECTING THE BEST CONFINEMENT DATE
+
+```{r}
+
+library(tidyverse)
+
+# Gather the confinement types
+test <- google_no_sub %>% gather(Confinement, julian_lockdown, C1_School.closing:C8_International.travel.controls)
+
+# Select the highest confinement level and replace it with the Julian date
+summary_index <- test %>% group_by(country_name, Confinement) %>% 
+  filter(julian_lockdown == max(julian_lockdown)) %>%
+  mutate(julian_lockdown = replace(julian_lockdown, julian_lockdown==max(julian_lockdown), min(julian)))%>%
+  distinct(julian_lockdown)
+
+# Spread the data again
+summary_index <- spread(summary_index, key = Confinement, value = julian_lockdown)
+
+# Join confinement dates and the google data for further analyses
+summary_index <- left_join(google_no_sub %>% dplyr::select(country_name:weekend),
+                 summary_index, by = "country_name")
+
+# Ensure columns are as.numeric
+cols_lvl <- c("C1_School.closing", "C2_Workplace.closing", "C3_Cancel.public.events",
+          "C4_Restrictions.on.gatherings", "C5_Close.public.transport", "C6_Stay.at.home.requirements",
+          "C7_Restrictions.on.internal.movement", "C8_International.travel.controls")
+summary_index[cols_lvl] <- lapply(summary_index[cols_lvl], as.numeric)
+
+# make a duplicate dataframe because we will use it in the code to check the lockdown dates
+summary_index2<- summary_index
+
+# Assign the the dates as before or after the confinement date
+summary_index <- summary_index %>% group_by(country_name) %>% 
+  mutate(C1_School.closing = ifelse(julian >= C1_School.closing, "After", "Before"),
+         C2_Workplace.closing = ifelse(julian >= C2_Workplace.closing, "After", "Before"),
+         C3_Cancel.public.events = ifelse(julian >= C3_Cancel.public.events, "After", "Before"),
+         C4_Restrictions.on.gatherings = ifelse(julian >= C4_Restrictions.on.gatherings, "After", "Before"),
+         C5_Close.public.transport = ifelse(julian >= C5_Close.public.transport, "After", "Before"),
+         C6_Stay.at.home.requirements = ifelse(julian >= C6_Stay.at.home.requirements, "After", "Before"),
+         C7_Restrictions.on.internal.movement = ifelse(julian >= C7_Restrictions.on.internal.movement, "After", "Before"),
+         C8_International.travel.controls = ifelse(julian >= C8_International.travel.controls, "After", "Before"))
+
+# Coerce confinement columns to factors to ensure "before" and "after" come in the correct order
+summary_index[cols_lvl] <- lapply(summary_index[cols_lvl], factor, levels = c("Before","After"))
+
+# Make a list of all the countries with no subregions
+# This will be called on in the loop below and the tvalues will be placed here
+no_sub_countries <- google_no_sub %>% distinct(country_alpha3, country_name)
+
+
+# RESIDENTIAL MODEL
+
+#Assign NA to all countries
+no_sub_countries$tval_residential <- NA
+no_sub_countries$confinement <- NA
+
+# Coerce confinement level columns to factors
+google_no_sub[cols_lvl] <- lapply(google_no_sub[cols_lvl], factor)
+
+library(nlme)
+
+# Run a loop that extracts the t-value from the gam model run for each country
+for (i in 1:nrow(no_sub_countries)) { 
+  tryCatch({
+    
+# Run the GAM models for each confinement level    
+gam1 <- gam(data=filter(google_no_sub, country_alpha3 == no_sub_countries$country_alpha3[i]), 
+            residential ~ C1_School.closing + weekend + s(julian)) 
+gam2 <- gam(data=filter(google_no_sub, country_alpha3 == no_sub_countries$country_alpha3[i]), 
+            residential ~ C2_Workplace.closing + weekend + s(julian))
+gam3 <- gam(data=filter(google_no_sub, country_alpha3 == no_sub_countries$country_alpha3[i]), 
+            residential ~ C3_Cancel.public.events + weekend + s(julian))
+gam4 <- gam(data=filter(google_no_sub, country_alpha3 == no_sub_countries$country_alpha3[i]), 
+            residential ~ C4_Restrictions.on.gatherings + weekend + s(julian))
+gam5 <- gam(data=filter(google_no_sub, country_alpha3 == no_sub_countries$country_alpha3[i]), 
+            residential ~ C5_Close.public.transport + weekend + s(julian))
+gam6 <- gam(data=filter(google_no_sub, country_alpha3 == no_sub_countries$country_alpha3[i]), 
+            residential ~ C6_Stay.at.home.requirements + weekend + s(julian))
+gam7 <- gam(data=filter(google_no_sub, country_alpha3 == no_sub_countries$country_alpha3[i]), 
+            residential ~ C7_Restrictions.on.internal.movement + weekend + s(julian))
+gam8 <- gam(data=filter(google_no_sub, country_alpha3 == no_sub_countries$country_alpha3[i]), 
+            residential ~ C8_International.travel.controls + weekend + s(julian))
+
+
+
+# Create a list of all the GAMs
+gam <- list(gam1, gam2, gam3, gam4, gam5, gam6, gam7, gam8)
+
+library(rlist);library(pipeR)
+
+# Sort the GAMs in from lowest to highest AIC score
+gam <- gam %>>% list.sort(aic) 
+
+# We need to build up a formula outside of the modeling call.
+# This is because we will select the confinement type with the lowest AIC score from the steps above. 
+# specify the model terms
+outcome <- "residential"
+variables <- c(gam[[1]][["terms"]][[3]][[2]][[2]], "weekend", "s(julian)")
+
+# Paste the confinement type
+no_sub_countries$confinement[i] <- paste(gam[[1]][["terms"]][[3]][[2]][[2]])
+
+# Build the model formula
+f <- as.formula(paste(outcome, paste(variables, collapse = " + "), sep = " ~ "))
+
+# Run the gam model
+model <- gam(f, data=filter(summary_index, country_alpha3 == no_sub_countries$country_alpha3[i]))
+
+
+# Get the summary from the GAM with the lowest AIC score
+gam.table <- summary(model)
+
+# Extract the t-value and paste it into the no_sub_countries dataframe
+gam.table <- gam.table$p.table
+no_sub_countries$tval_residential[i] <- gam.table[2,3]
+
+  }, error=function(e){cat("ERROR :",conditionMessage(e), "\n")})
+}
+
+
+
+## CHECK THE LOCKDOWN DATES MAKE SENSE
+
+# Remove duplicate countries
+summary_index2 <- distinct(summary_index2, country_name, .keep_all = TRUE)
+
+# Gather the data to get the julian dates 
+summary_index2 <- summary_index2 %>% gather(confinement, julian_lockdown, C1_School.closing:C8_International.travel.controls)
+
+# match it to the other dataframe
+no_sub_countries2 <- left_join(no_sub_countries, 
+                               summary_index2 %>% dplyr::select(country_name, confinement, julian_lockdown),
+                               by = c("country_name", "confinement"))
+
+no_sub_countries2$julian_lockdown <- as.numeric(no_sub_countries2$julian_lockdown)
+
+## PLOT
+ggplot(google_no_sub, aes(x=julian, y=residential)) + 
+  geom_line() + 
+  facet_wrap(~country_name, ncol = 7)+
+  geom_vline(data = no_sub_countries2, aes(xintercept = julian_lockdown), colour = "red")
+
+
+```
+
+
+
+
 ## TEST: Selecting the best confinement date
 
 ```{r}
